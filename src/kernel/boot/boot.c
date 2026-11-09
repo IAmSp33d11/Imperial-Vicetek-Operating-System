@@ -53,6 +53,7 @@ extern void idt_init(void); // src/kernel/boot/idt.c
 extern void syscall_stub(void); // src/kernel/other/syscall.s
 extern int check_shit(void); // src/kernel/boot/funcs.s
 extern void enable_sse(void); // src/kernel/boot/funcs.s
+extern uint8_t check_phys_addr_size(void); // src/kernel/boot/funcs.s
 
 
 __attribute__((noreturn))
@@ -170,13 +171,13 @@ void bootup(void) {
     printf("%s\n", string);
     free_addr(string);
 
-    // Before we drop into ring 0, we must do this
+
+    // Stuff for ring 3
     uint64_t efer = rdmsr(0xC0000080); // IA32_EFER
     efer |= 0b1; // Set bit 0 for System Call Extensions
     wrmsr(0xC0000080, efer); // IA32_EFER
 
 
-    // Prepare a syscall function so that way ring 1 drivers can get back here.
     
     { // Make temp go out of scope so GCC reuses its memory
         uint64_t temp = 0x10LL << 48; // Set to usermode data segment - 0x8;
@@ -191,16 +192,17 @@ void bootup(void) {
     kernel_data[0] = rsp; // the stack
     kernel_data[1] = hhdm; // the higher half direct map
 
-
-    wrmsr(0xC0000102, (uint64_t) kernel_data); // IA32_KERNEL_GS_BASE
-
     
+    wrmsr(0xC0000102, (uint64_t) kernel_data); // IA32_KERNEL_GS_BASE
+    printf("Test\n");
+    printf("The amount of physical address bits we have are %udb\n", check_phys_addr_size());
     
     bootup_cont();
 }
 
 
 void bootup_cont(void) {
-    
+    struct limine_framebuffer *framebuffer = framebuffer_request.response->framebuffers[0];
+    fill(framebuffer, 0x00ffc5de);
     hcf();
 }

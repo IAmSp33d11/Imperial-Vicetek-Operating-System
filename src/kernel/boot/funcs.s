@@ -83,6 +83,41 @@ enable_sse: # I had to seperate this from the check_shit and enable_shit functio
 	mov %rax, %cr4
 	ret
 
+
+.global check_phys_addr_size
+# uint8_t check_phys_addr_size(void);
+check_phys_addr_size:
+	pushq %rbx
+	pushq %rcx
+	pushq %rdx
+	# 0x80000008 eax 7:0 = the value we want
+	# 0x80000000 eax needs to be higher than the leaf we want from
+	movl $0x80000008, %eax
+	cpuid
+
+	cmp $0x80000008, %eax
+	jnc 0f # if %eax >= $0x80000008
+
+	movl $0x80000008, %eax
+	cpuid
+
+	
+	movb %al, %bl
+	xor %rax, %rax
+	movb %bl, %al
+
+	popq %rdx
+	popq %rcx
+	popq %rbx
+	ret
+
+0:
+	popq %rdx
+	popq %rcx
+	popq %rbx
+	movq $36, %rax # We shall assume its 36 bits if its not supported.
+	ret
+
 .global check_shit
 # int check_shit(void);
 # Note to self! Later only save the registers that we touch! 
@@ -92,7 +127,7 @@ check_shit:
 	movl $0x0, %eax # Check if the CPU supports the highest leaf with features we check here
 	cpuid
 	cmp $0x7, %eax # Check it against 0x7
-	jnc 2f
+	jnc 2f # %eax >= $0x7
 
 	popaq
 	movq $1, %rax
